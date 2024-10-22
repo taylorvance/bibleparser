@@ -2,35 +2,38 @@ import re
 import urllib.request
 import json
 
+from difflib import get_close_matches
+
+from bible_chapter_verses import bible_chapter_verses
+
 
 def parse_reference(text:str) -> str:
-    (book, chapter, verse_start, verse_end) = parse_parts(text)
-    # print(f'"{text}" => {book}/{chapter}/{verse_start}/{verse_end}')
-
-    book = format_book(book)
-    if not book:
-        raise ValueError(f'Could not parse book from "{text}".')
-
-    if not chapter: return f'{book}'
-    if not verse_start: return f'{book} {chapter}'
-    if not verse_end: return f'{book} {chapter}:{verse_start}'
-    return f'{book} {chapter}:{verse_start}-{verse_end}'
+    """
+    Interpret a reference string into a standardized format.
+    """
+    (book, chapter, verse_start, verse_end) = (x or "" for x in parse_parts(text))
+    return f'{book} {chapter}:{verse_start}-{verse_end}'.strip(' :-')
 
 
 def parse_parts(text:str) -> tuple:
-    # Convert number words to integers.
-    text = convert_numbers(text)
+    """
+    Parse the book, chapter, and verses from a reference string.
+    Returns a tuple of (book, chapter, verse_start, verse_end).
+    """
+    # Convert number words to digits.
+    text = digitize(text)
 
-    # Split on whitespace, colons, hyphens, ampersands, and periods.
-    words = re.split(r'[\s:\-&\.]', text)
+    # Split on non-word characters.
+    words = re.split(r'[^\w]+', text)
 
     # Filter out empty and filler words.
     ignore = {
         'chapter', 'ch',
         'verse', 'verses', 'vs', 'v',
         'through', 'thru', 'to',
+        'the', 'a', 'an',
     }
-    words = [word for word in words if word and word not in ignore]
+    words = [w for w in words if w and w not in ignore]
 
     book_words = []
     for i,word in enumerate(words):
@@ -42,33 +45,56 @@ def parse_parts(text:str) -> tuple:
     number_words = [word for word in words[1:] if word.isdigit()]
 
     book = ' '.join(book_words)
-    chapter = number_words.pop(0) if number_words else None
-    verse_start = number_words.pop(0) if number_words else None
-    verse_end = number_words.pop(0) if number_words else None
+    chapter = int(number_words.pop(0)) if number_words else None
+    verse_start = int(number_words.pop(0)) if number_words else None
+    verse_end = int(number_words.pop(0)) if number_words else None
+
+    book = format_book(book)
+    if not book:
+        raise ValueError(f'Could not parse book from "{text}".')
+
+    return range_check((book, chapter, verse_start, verse_end))
+
+def range_check(parts:tuple) -> tuple:
+    """
+    If the chapter number is out of the book's range, split it into chapter and verse.
+    Sometimes dictation is ambiguous. Dictating "Matthew twenty one twelve" is sometimes transcribed as "Matthew 2112" instead of "Matthew 21:12".
+    """
+    (book, chapter, verse_start, verse_end) = parts
+    if not chapter:
+        return parts
+
+    booklow = book.lower()
+    if booklow not in bible_chapter_verses:
+        return parts
+
+    max_chapter = max(bible_chapter_verses[booklow].keys())
+    max_verse = bible_chapter_verses[booklow][max_chapter]
+
+    if chapter > max_chapter:
+        chapterstr = str(chapter)
+        if len(chapterstr) == 4:
+            verse_end = verse_start
+            verse_start = int(chapterstr[2:])
+            chapter = int(chapterstr[:2])
+        elif len(chapterstr) == 3:
+            verse_end = verse_start
+            verse_start = int(chapterstr[1:])
+            chapter = int(chapterstr[0])
+        elif len(chapterstr) == 2:
+            verse_end = verse_start
+            verse_start = int(chapterstr[1:])
+            chapter = int(chapterstr[0])
 
     return (book, chapter, verse_start, verse_end)
 
-def _old_parse_parts(text:str) -> tuple:
-    chapter_synonyms = '|'.join(['chapter','ch'])
-    verse_synonyms = '|'.join([':','verse','verses','vs','v'])
-    through_synonyms = '|'.join(['through','thru','to','-'])
 
-    pattern = rf'^\s*(?P<book>[1-3]?[A-Za-z ]+?)\s*(?:{chapter_synonyms})?\.?\s*(?P<chapter>\d+)?\s*(?:{verse_synonyms}?)?\.?\s*(?P<verse_start>\d+)?\s*(?:(?:{through_synonyms})\s*(?P<verse_end>\d+))?\s*$'
-
-    match = re.match(pattern, convert_numbers(text), re.IGNORECASE)
-    if not match:
-        raise ValueError(f'Could not parse reference from "{text}".')
-
-    book = match.group('book')
-    chapter = match.group('chapter')
-    verse_start = match.group('verse_start')
-    verse_end = match.group('verse_end')
-
-    return (book, chapter, verse_start, verse_end)
-
-
-def convert_numbers(text:str) -> str:
-    word2num = {
+def digitize(text:str) -> str:
+    """
+    Convert number words (from one to ninety-nine) to digits.
+    Supports certain homophones.
+    """
+    ones = {
         'one':'1', 'won':'1',
         'two':'2', # Don't convert to/too, as that may be part of a verse range (eg. "Genesis 1 1 to 3").
         'three':'3',
@@ -78,6 +104,30 @@ def convert_numbers(text:str) -> str:
         'seven':'7',
         'eight':'8', 'ate':'8',
         'nine':'9',
+    }
+    tens = {
+        'twenty':'20',
+        'thirty':'30',
+        'forty':'40', 'fourty':'40',
+        'fifty':'50',
+        'sixty':'60',
+        'seventy':'70',
+        'eighty':'80',
+        'ninety':'90',
+    }
+
+    # Handle composite numbers like "forty-two".
+    def digitize_composite(m):
+        parts = m.group(0).lower().split('-')
+        return str(int(tens[parts[0]]) + int(ones[parts[1]]))
+    pattern = r'\b(' + '|'.join(re.escape(key) for key in tens.keys()) + r')-(' + '|'.join(re.escape(key) for key in ones.keys()) + r')\b'
+    text = re.sub(pattern, digitize_composite, text, flags=re.IGNORECASE)
+
+    # Handle single numbers.
+    word2num = {
+        **ones,
+        **tens,
+        **{
         'ten':'10',
         'eleven':'11',
         'twelve':'12',
@@ -88,30 +138,61 @@ def convert_numbers(text:str) -> str:
         'seventeen':'17',
         'eighteen':'18',
         'nineteen':'19',
-        'twenty':'20',
-    }
+    }}
     pattern = r'\b(' + '|'.join(re.escape(key) for key in word2num.keys()) + r')\b'
-    return re.sub(pattern, lambda match: word2num[match.group(0).lower()], text, flags=re.IGNORECASE)
+    text = re.sub(pattern, lambda m: word2num[m.group(0).lower()], text, flags=re.IGNORECASE)
+
+    return text
 
 
-def format_book(text:str) -> str:
-    words = text.strip().lower().split()
+def format_book(book:str) -> str:
+    """
+    Format the book name into a standardized format.
+    Handles various synonyms, homophones, and misspellings.
+    """
+    # Convert to lowercase and split on whitespace.
+    words = book.strip().lower().split()
 
-    # Format ordinals as plain numbers.
+    # If the first word is an ordinal, convert it to a number.
     ord2num = {
-        '1st':'1', 'first':'1',
-        '2nd':'2', 'second':'2',
-        '3rd':'3', 'third':'3',
+        '1st':'1', 'first':'1', 'one':'1', 'won':'1',
+        '2nd':'2', 'second':'2', 'two':'2', 'to':'2', 'too':'2',
+        '3rd':'3', 'third':'3', 'three':'3',
     }
-    words[0] = ord2num.get(words[0], words[0])
+    if words[0] in ord2num:
+        words[0] = ord2num[words[0]]
 
     book = ' '.join(words)
 
-    # Validate against the list of books.
+    if book not in bible_chapter_verses:
+        # Check for synonyms (psalm vs psalms, song of songs vs song of solomon), homophones (jon vs john), misinterpretations (june vs jude), etc.
+        # These will map to the official book name in the bible_chapter_verses dict.
+        tocanon = {
+            'roof':'ruth',
+            'psalm':'psalms', 'song':'psalms', 'songs':'psalms',
+            'proverb':'proverbs',
+            'song of songs':'song of solomon',
+            'name':'nahum',
+            'aim us':'amos', 'a moss':'amos', 'moss':'amos',
+            'habacuc':'habakkuk', 'habit cook':'habakkuk',
+            'hag eye':'haggai',
+            'marc':'mark',
+            'ax':'acts', 'axe':'acts', 'ask':'acts',
+            'jon':'john', '1 jon':'1 john', '2 jon':'2 john', '3 jon':'3 john',
+            'phillipians':'philippians',
+            'tight us':'titus', 'tied us':'titus',
+            'june':'jude',
+            'revelations':'revelation',
+        }
+        book = tocanon.get(book, book)
 
-    book = book.title() #.temp
+    if book not in bible_chapter_verses:
+        # Find closest match (with at least 60% similarity).
+        matches = get_close_matches(book, bible_chapter_verses.keys(), n=1, cutoff=0.6)
+        book = matches[0] if matches else book
 
-    return book
+    # Return the book, title-cased.
+    return book.title()
 
 
 def fetch_passage(text:str) -> dict:
@@ -119,13 +200,11 @@ def fetch_passage(text:str) -> dict:
     if not passage:
         return None
 
-    # print(f'fetching {passage}')
     url = f'https://bible-api.com/{urllib.parse.quote(passage)}'
     req = urllib.request.Request(url)
     with urllib.request.urlopen(req) as res:
         data = res.read().decode('utf-8')
         data = json.loads(data)
-    # print(json.dumps(data, indent=4))
 
     return {
         'input': text,
