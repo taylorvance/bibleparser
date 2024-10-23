@@ -4,7 +4,7 @@ import json
 
 from difflib import get_close_matches
 
-from bible_chapter_verses import bible_chapter_verses
+from .book_chapter_verses import book_chapter_verses
 
 
 def parse_reference(text:str) -> str:
@@ -65,11 +65,11 @@ def range_check(parts:tuple) -> tuple:
         return parts
 
     booklow = book.lower()
-    if booklow not in bible_chapter_verses:
+    if booklow not in book_chapter_verses:
         return parts
 
-    max_chapter = max(bible_chapter_verses[booklow].keys())
-    max_verse = bible_chapter_verses[booklow][max_chapter]
+    max_chapter = max(book_chapter_verses[booklow].keys())
+    max_verse = book_chapter_verses[booklow][max_chapter]
 
     if chapter > max_chapter:
         chapterstr = str(chapter)
@@ -164,9 +164,9 @@ def format_book(book:str) -> str:
 
     book = ' '.join(words)
 
-    if book not in bible_chapter_verses:
+    if book not in book_chapter_verses:
         # Check for synonyms (psalm vs psalms, song of songs vs song of solomon), homophones (jon vs john), misinterpretations (june vs jude), etc.
-        # These will map to the official book name in the bible_chapter_verses dict.
+        # These will map to the official book name in the book_chapter_verses dict.
         tocanon = {
             'roof':'ruth',
             'psalm':'psalms', 'song':'psalms', 'songs':'psalms',
@@ -186,9 +186,9 @@ def format_book(book:str) -> str:
         }
         book = tocanon.get(book, book)
 
-    if book not in bible_chapter_verses:
+    if book not in book_chapter_verses:
         # Find closest match (with at least 60% similarity).
-        matches = get_close_matches(book, bible_chapter_verses.keys(), n=1, cutoff=0.6)
+        matches = get_close_matches(book, book_chapter_verses.keys(), n=1, cutoff=0.6)
         book = matches[0] if matches else book
 
     # Return the book, title-cased.

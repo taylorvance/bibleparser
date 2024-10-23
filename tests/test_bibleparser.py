@@ -3,7 +3,7 @@ import unittest
 import sys
 sys.path.append("..")
 
-from bible_parser.bible import parse_reference
+from bibleparser.bibleparser import parse_reference
 
 
 class TestParseReference(unittest.TestCase):

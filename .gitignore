@@ -1,2 +1,11 @@
-__init__.py
+dist/
+build/
+*.egg-info/
+
+venv/
+
 __pycache__/
+*.pyc
+*.pyo
+
+.DS_Store

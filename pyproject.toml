@@ -1,0 +1,22 @@
+[project]
+name = "bibleparser"
+version = "0.0.1"
+authors = [
+  { name="Taylor Vance", email="mirrors.cities0w@icloud.com" },
+]
+description = "Parse a mistranscribed dictated bible reference into a standard format"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+keywords = ["bible", "parser", "reference", "passage", "dictation", "transcription", "text processing", "siri", "alexa"]
+
+[project.license]
+text = "MIT"
+
+[project.urls]
+Homepage = "https://github.com/taylorvance/bibleparser"
+Issues = "https://github.com/taylorvance/bibleparser/issues"
