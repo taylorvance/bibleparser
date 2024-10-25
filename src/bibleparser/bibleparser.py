@@ -35,6 +35,12 @@ def parse_parts(text:str) -> tuple:
     }
     words = [w for w in words if w and w not in ignore]
 
+    # Special case for "X123" and similar patterns. Siri confuses "Acts" for "X".
+    m = re.match(r'^([xX])(\d+)', words[0])
+    if m:
+        words.insert(1, m.group(2))
+        words[0] = m.group(1)
+
     book_words = []
     for i,word in enumerate(words):
         if i>0 and word.isdigit():
@@ -95,7 +101,7 @@ def digitize(text:str) -> str:
     Supports certain homophones.
     """
     ones = {
-        'one':'1', 'won':'1',
+        'one':'1', 'won':'1', 'went':'1',
         'two':'2', # Don't convert to/too, as that may be part of a verse range (eg. "Genesis 1 1 to 3").
         'three':'3',
         'four':'4', 'for':'4',
@@ -175,9 +181,9 @@ def format_book(book:str) -> str:
             'name':'nahum',
             'aim us':'amos', 'a moss':'amos', 'moss':'amos',
             'habacuc':'habakkuk', 'habit cook':'habakkuk',
-            'hag eye':'haggai',
+            'hey guy':'haggai', 'hi guy':'haggai', 'hag eye':'haggai', 'haggy eye':'haggai',
             'marc':'mark',
-            'ax':'acts', 'axe':'acts', 'ask':'acts',
+            'x':'acts', 'ax':'acts', 'axe':'acts', 'ask':'acts',
             'jon':'john', '1 jon':'1 john', '2 jon':'2 john', '3 jon':'3 john',
             'phillipians':'philippians',
             'tight us':'titus', 'tied us':'titus',

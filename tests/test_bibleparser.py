@@ -37,12 +37,14 @@ class TestParseReference(unittest.TestCase):
         self.assertEqual(parse_reference("one timothy four eight"), "1 Timothy 4:8")
         self.assertEqual(parse_reference("won timothy for ate"), "1 Timothy 4:8")
         self.assertEqual(parse_reference("psalm nineteen"), "Psalms 19")
+        self.assertEqual(parse_reference("matthew 12 went through eight"), "Matthew 12:1-8")
 
     def test_composite_numbers(self):
         self.assertEqual(parse_reference("psalm forty-two"), "Psalms 42")
         self.assertEqual(parse_reference("psalm forty two"), "Psalms 40:2")
         self.assertEqual(parse_reference("psalm fourty-won"), "Psalms 41")
-        self.assertEqual(parse_reference("matthew twenty-twenty"), "Matthew 20:20")
+        self.assertEqual(parse_reference("matthew twenty twenty"), "Matthew 20:20")
+        self.assertEqual(parse_reference("psalm ninety-nine nine"), "Psalms 99:9")
 
     def test_ordinals(self):
         self.assertEqual(parse_reference("1 Timothy"), "1 Timothy")
@@ -93,8 +95,8 @@ class TestParseReference(unittest.TestCase):
         self.assertEqual(parse_reference("second kings 2020 through 21"), "2 Kings 20:20-21") # "second kings twenty twenty through twenty one"
         self.assertEqual(parse_reference("psalms 3820"), "Psalms 38:20") # "psalms thirty eight twenty"
         self.assertEqual(parse_reference("psalms 3820 through 22"), "Psalms 38:20-22") # "psalms thirty eight twenty through twenty two"
-        # self.assertEqual(parse_reference("Psalms 156"), "Psalms 150:6") #."psalms one fifty six" doesn't work with current implementation
         self.assertEqual(parse_reference("song of solomon 45"), "Song Of Solomon 4:5")
+        # self.assertEqual(parse_reference("Psalms 156"), "Psalms 150:6") #."psalms one fifty six" doesn't work with current implementation
 
     def test_canonicalization(self):
         self.assertEqual(parse_reference("Psalm 1 1"), "Psalms 1:1")
@@ -102,6 +104,7 @@ class TestParseReference(unittest.TestCase):
         self.assertEqual(parse_reference("the song of songs 1 1"), "Song Of Solomon 1:1")
         self.assertEqual(parse_reference("ax 1 1"), "Acts 1:1")
         self.assertEqual(parse_reference("axe 1 1"), "Acts 1:1")
+        self.assertEqual(parse_reference("X126"), "Acts 1:26")
         self.assertEqual(parse_reference("Jon 1 1"), "John 1:1")
         self.assertEqual(parse_reference("1st Jon 1 1"), "1 John 1:1")
         self.assertEqual(parse_reference("First Jon 1 1"), "1 John 1:1")
@@ -111,6 +114,8 @@ class TestParseReference(unittest.TestCase):
         self.assertEqual(parse_reference("join 3 16"), "John 3:16")
         self.assertEqual(parse_reference("first join 3 16"), "1 John 3:16")
         self.assertEqual(parse_reference("Hag I one one"), "Haggai 1:1")
+        self.assertEqual(parse_reference("Hag eye one one"), "Haggai 1:1")
+        self.assertEqual(parse_reference("Hey guy 223"), "Haggai 2:23")
         self.assertEqual(parse_reference("gen 1 1"), "Genesis 1:1")
         self.assertEqual(parse_reference("1st Tessa 4 8"), "1 Thessalonians 4:8")
         self.assertEqual(parse_reference("Michael 1 1"), "Micah 1:1")
